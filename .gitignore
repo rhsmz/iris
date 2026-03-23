@@ -1,1 +1,22 @@
-/target
+# Rust / Cargo
+/target/
+Cargo.lock
+
+# Docker / 環境変数（機密情報を含むため除外）
+.env
+.env.local
+.env.*.local
+
+# IDE / エディタ
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS 生成ファイル
+.DS_Store
+Thumbs.db
+
+# ログ・テンポラリ
+*.log
+/tmp/

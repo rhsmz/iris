@@ -1,0 +1,82 @@
+version: '3.9'
+
+services:
+  # -----------------------------------------------
+  # I.R.I.S. アプリケーション本体
+  # -----------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder  # 開発時はビルドステージを使用
+    container_name: iris_app
+    working_dir: /app
+    volumes:
+      # ソースコードをマウントして hot reload に対応
+      - .:/app
+      # cargo のキャッシュをボリュームで永続化（ビルド高速化）
+      - cargo_cache:/usr/local/cargo/registry
+      - target_cache:/app/target
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - SURREAL_URL=ws://surrealdb:8000
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      surrealdb:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    command: cargo run
+    networks:
+      - iris_net
+
+  # -----------------------------------------------
+  # SurrealDB（グラフ記憶エンジン）
+  # -----------------------------------------------
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: iris_surrealdb
+    ports:
+      - "8000:8000"
+    volumes:
+      - surrealdb_data:/mydata
+    command: start --log trace --user root --pass root file:/mydata/iris.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iris_net
+
+  # -----------------------------------------------
+  # Ollama（ローカルLLM: Gemma 3n）
+  # -----------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: iris_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - iris_net
+
+# -----------------------------------------------
+# 永続化ボリューム
+# -----------------------------------------------
+volumes:
+  surrealdb_data:
+  ollama_data:
+  cargo_cache:
+  target_cache:
+
+# -----------------------------------------------
+# ネットワーク
+# -----------------------------------------------
+networks:
+  iris_net:
+    driver: bridge
