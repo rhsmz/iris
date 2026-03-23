@@ -1,5 +1,5 @@
 ---
-name: I.R.I.S. バックエンド開発スキル (Backend Development Skill)
+name: I.R.I.S. バックエンド開発スキル
 description: Project I.R.I.S. の Rust + Gemma ベースのバックエンドを開発するための手順およびノウハウです。
 ---
 
@@ -10,7 +10,7 @@ description: Project I.R.I.S. の Rust + Gemma ベースのバックエンドを
 ## 指示事項 (Instructions)
 1. **ワークスペースの初期化**: 新しいコンポーネントを作成する際は、Cargo ワークスペースを利用します。`cargo new --bin [crate_name]` を使用してください。
 2. **データベーススキーマの設定**: 最優先で SurrealDB への接続を確立します。動的な鮮明度（Vividness）パラメータを含む記憶（Memory）ノードのスキーマ定義を作成してください。
-3. **Axum API**: REST または WebSocket レイヤーを構築します。記憶（Memory）の操作が HTTP ハンドラと密結合しないように、ロロジックは細かな非同期関数に分割してください。
+3. **Axum API**: REST または WebSocket レイヤーを構築します。記憶（Memory）の操作が HTTP ハンドラと密結合しないように、ロジックは細かな非同期関数に分割してください。
 4. **コンピュータービジョン（CV）との連携**: `opencv-rust` が正常にビルドできることを確認してください。テスト中はカメラ入力をモック（模擬）するために、Vision Engine 用のシンプルな Trait（インターフェース）を設定してください。
 
 ## 連想記憶のロジック (Associated Memory Logistics)

@@ -1,23 +1,23 @@
-# System Architecture: Project I.R.I.S.
+# システムアーキテクチャ: Project I.R.I.S.
 
-## Overview
-Project I.R.I.S. is a self-hosted, autonomous associated memory AI partner built on a Raspberry Pi 5. It integrates a Rust backend with the Gemma 3n LLM.
+## 概要
+Project I.R.I.S. は、Raspberry Pi 5上に構築される自律型・連想記憶AIパートナーです。Rustバックエンドと大規模言語モデル（Gemma 3n）を統合しています。
 
-## Layers
+## レイヤー構成
 
-### 1. Sense (Input Layer)
-- **Vision Subsystem**: OpenCV-Rust integration for facial recognition. Processes local video feeds to detect the user's presence without cloud dependencies.
-- **Audio/Text Subsystem**: Axum-based web server for handling incoming dialogue and system commands.
+### 1. Sense (入力層)
+- **Vision（視覚サブシステム）**: OpenCV-Rustと連携し、カメラからの映像をもとに顔認識を行います。クラウドに依存せず、ローカルで主人の存在を検知します。
+- **Audio/Text（音声・テキストサブシステム）**: AxumベースのWebサーバーを介して対話やシステムコマンドを受け付けます。
 
-### 2. Logic (Reasoning Layer)
-- **Reasoning Engine**: Gemma 3n (4B/9B) executed locally via Ollama. Handles multimodal inputs.
-- **Orchestrator**: Tokio runtime managing asynchronous tasks, determining whether to trigger memory storage, retrieval, or action generation.
+### 2. Logic (思考層)
+- **Reasoning（推論エンジン）**: Ollamaを経由してローカルで稼働するGemma 3n (4B/9B) を活用し、マルチモーダル推論を行います。
+- **Orchestrator（オーケストレーター）**: Tokioランタイムを用いた非同期処理により、記憶の保存、抽出、あるいはアクションの実行などの自律的なタスク管理を行います。
 
-### 3. Memory (Storage Layer)
-- **Graph Engine**: SurrealDB is used to store conversational contexts, user facts, and associations as a connected graph graph.
-- **Vividness Model**: Episodic memories possess a fading mechanism (vividness: $V = e^{-t / S}$).
-- **Associative Retrieval**: Accessing a memory node propagates activation to connected nodes, simulating "spreading activation."
+### 3. Memory (記憶層)
+- **Graph Engine（グラフエンジン）**: SurrealDBを使用し、対話の文脈、事実、関連性をグラフ構造のノードとして保存・管理します。
+- **Vividness Model（鮮明度モデル）**: エピソード記憶には風化の仕組み（鮮明度: $V = e^{-t / S}$）が組み込まれています。
+- **Associative Retrieval（連想想起）**: ある記憶ノードにアクセスすると、リンクされたノードにも活性化信号が伝播し「連想」をシミュレートします。
 
-### 4. Action (Output Layer)
-- **Response Synthesis**: Generating dialogue that reflects the 'Rusty' persona (refined yet possessing human-like quirks).
-- **Autonomous Research**: Utilizing the Tavily API to actively seek information when the local knowledge base is insufficient.
+### 4. Action (出力層)
+- **Response Synthesis（応答生成）**: 「Rusty（少しサビついた、しかし洗練された）」というペルソナに基づいた、人間らしい愛嬌のある応答を生成します。
+- **Autonomous Research（自律リサーチ）**: ローカルの知識ベースで不足している情報がある場合、Tavily APIを使用して自律的にWeb検索を行い、知識を補完します。

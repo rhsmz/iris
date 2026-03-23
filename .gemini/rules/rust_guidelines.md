@@ -1,15 +1,20 @@
-# Coding Guidelines for Project I.R.I.S.
+# コーディングおよび運用ガイドライン: Project I.R.I.S.
 
-## Rust Standards
-1. **Safety and Performance**: Write memory-safe, highly optimized Rust. Avoid `unwrap()` / `expect()` where proper error handling (`Result`/`Option` and `?` operator) can be used. Use `anyhow` for app-level error handling or `thiserror` for library-level errors.
-2. **Asynchronous Execution**: Ensure all heavy I/O and LLM wait times are non-blocking. Utilize `tokio` for orchestrating the Axum server, API requests, and SurrealDB queries.
-3. **Rust formatting**: Always format code using standard `cargo fmt` and regularly run `cargo clippy`.
+## エージェントの基本運用ルール
+1. **言語の固定**: ユーザーとの対話、および出力するドキュメントやコメントは**すべて日本語**で行ってください。
+2. **定期的なコミット**: 作業の区切り（機能の実装完了、バグ修正など）ごとに、必ず定期的にGitコミットを行ってください。
+3. **コミット時のブランチ作成**: コミットを行う際は、直接 `main` や `master` にプッシュせず、作業内容を反映した適切な名前の**新しいブランチを作成**してからコミットしてください。
 
-## Domain-Specific Rules
-1. **Axum**: Use Axum for the backend server. Create clear domain route separation (e.g., `/api/sense`, `/api/memory`).
-2. **SurrealDB**: Model memories strictly as graph nodes (records) and their associational links as edges (relational queries).
-3. **OpenCV-Rust**: Offload video parsing to a lightweight background thread. Never block the main AI decision loop on frame decoding.
-4. **Ollama**: Connect to the local `ollama` instance to orchestrate prompt requests for `gemma:3n`. Ensure graceful handling of timeout or overloading.
+## Rust コーディング規約
+1. **安全性とパフォーマンス**: メモリセーフで最適化されたRustコードを記述してください。適切なエラーハンドリング（`Result`/`Option` および `?` 演算子）が可能な場合は、`unwrap()` や `expect()` の使用を避けてください。アプリケーションレベルのエラーには `anyhow`、ライブラリレベルのエラーには `thiserror` を使用してください。
+2. **非同期処理の徹底**: 重いI/O処理やLLMの待機時間がメインスレッドをブロックしないようにしてください。Axumサーバー、APIリクエスト、SurrealDBのクエリはすべて `tokio` を用いて非同期に処理してください。
+3. **Rustフォーマット**: 常に `cargo fmt` を用いてコードをフォーマットし、定期的に `cargo clippy` を実行して警告を修正してください。
 
-## Persona "Rusty"
-- When writing dialogue generation logic, ensure the default system prompts include instructions to output text reflecting "human-like quirkiness mixed with highly refined precision."
+## ドメイン固有ルール
+1. **Axum**: バックエンドサーバーにはAxumを使用します。システムのエンドポイント（例: `/api/sense`, `/api/memory`）は責任境界を明確にしてルーティングを分けてください。
+2. **SurrealDB**: 記憶は厳格にグラフネットワークとしてモデリングします。記憶の実体はノード（レコード）とし、その連想・関係性はエッジ（リレーションクエリ）として管理します。
+3. **OpenCV-Rust**: ビデオ映像のパース処理等は、軽量なバックグラウンドスレッドにオフロードしてください。メインのAI決定ループがフレームのデコード処理によってブロックされてはなりません。
+4. **Ollama**: ローカルの `ollama` インスタンスに接続し、`gemma:3n` へのプロンプトリクエストをオーケストレーションします。タイムアウトや過負荷に対するグレースフルなエラーハンドリングを実装してください。
+
+## ペルソナ "Rusty" の徹底
+- 対話生成ロジックを実装する際は、デフォルトのシステムプロンプトに「人間のような愛嬌・トボけたユーモア」と「高度に洗練された冷徹な精度」が混在する出力を指示するようにしてください。
