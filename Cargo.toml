@@ -4,9 +4,21 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = "0.8.8"
-reqwest = { version = "0.13.2", features = ["json"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-surrealdb = "3.0.4"
-tokio = { version = "1.50.0", features = ["full"] }
+# 非同期ランタイム
+tokio = { version = "1", features = ["full"] }
+
+# Web サーバー
+axum = "0.8"
+
+# HTTP クライアント（Ollama / Tavily API 通信）
+reqwest = { version = "0.12", features = ["json"] }
+
+# シリアライズ / デシリアライズ
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# SurrealDB（リモート WebSocket 接続のみ。DBはDockerコンテナとして起動する）
+surrealdb = { version = "2" }
+
+# 時刻処理（記憶タイムスタンプ・忘却曲線計算）
+chrono = { version = "0.4", features = ["serde"] }

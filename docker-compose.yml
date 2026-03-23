@@ -2,14 +2,17 @@ version: '3.9'
 
 services:
   # -----------------------------------------------
-  # I.R.I.S. アプリケーション本体
+  # I.R.I.S. アプリケーション本体（Rustコア）
   # -----------------------------------------------
-  app:
+  iris-core:
     build:
       context: .
       dockerfile: Dockerfile
       target: builder  # 開発時はビルドステージを使用
-    container_name: iris_app
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+    container_name: iris_core
     working_dir: /app
     volumes:
       # ソースコードをマウントして hot reload に対応
@@ -17,6 +20,8 @@ services:
       # cargo のキャッシュをボリュームで永続化（ビルド高速化）
       - cargo_cache:/usr/local/cargo/registry
       - target_cache:/app/target
+      # エピソード記憶の永続化（CMS構造: /var/iris/memories/YYYY/MM/DD/）
+      - memories_data:/var/iris/memories
     ports:
       - "3000:3000"
     env_file:
@@ -24,6 +29,10 @@ services:
     environment:
       - SURREAL_URL=ws://surrealdb:8000
       - OLLAMA_URL=http://ollama:11434
+      - MEMORIES_PATH=/var/iris/memories
+    # カメラデバイスのマウント（Raspberry Pi Camera / USB Camera）
+    devices:
+      - /dev/video0:/dev/video0
     depends_on:
       surrealdb:
         condition: service_healthy
@@ -34,7 +43,7 @@ services:
       - iris_net
 
   # -----------------------------------------------
-  # SurrealDB（グラフ記憶エンジン）
+  # SurrealDB（グラフ記憶エンジン・メタデータ管理）
   # -----------------------------------------------
   surrealdb:
     image: surrealdb/surrealdb:latest
@@ -73,6 +82,8 @@ volumes:
   ollama_data:
   cargo_cache:
   target_cache:
+  # エピソード記憶 CMS（日時ベースのMarkdownファイル群）
+  memories_data:
 
 # -----------------------------------------------
 # ネットワーク
