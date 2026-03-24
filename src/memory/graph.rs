@@ -193,6 +193,26 @@ pub async fn decay_vividness() -> surrealdb::Result<()> {
     Ok(())
 }
 
+/// 主人のプレゼンス検知時に、「主人」に関連する記憶ノードの鮮明度を強制上昇させる
+/// Vision サブシステムの `UserDetected` イベント受信時に呼び出される
+///
+/// # Arguments
+/// * `boost_amount` - 鮮明度の上昇量（0.0 ~ 1.0、上限1.0でクランプ）
+pub async fn boost_owner_vividness(boost_amount: f32) -> surrealdb::Result<()> {
+    let boost = boost_amount.clamp(0.0, 1.0);
+    db().query(
+        "UPDATE memory SET \
+         vividness = math::min(vividness + $boost, 1.0), \
+         last_accessed = time::unix() \
+         WHERE concept CONTAINS '主人' OR tags CONTAINS '主人' OR tags CONTAINS 'owner'"
+    )
+    .bind(("boost", boost))
+    .await?;
+
+    println!("💡 主人関連の記憶鮮明度を +{boost:.2} ブーストしました");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
