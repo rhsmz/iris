@@ -113,6 +113,18 @@ pub async fn insert_memory(
         .content(node)
         .await?;
 
+    // 3. 人格コアノードへの初期連想バイアス（弱いエッジ）を追加
+    db().query(
+        "RELATE type::thing('memory', $concept) \
+           -> relates_to -> personality:humor SET weight = 0.1; \
+         RELATE type::thing('memory', $concept) \
+           -> relates_to -> personality:sarcasm SET weight = 0.1; \
+         RELATE type::thing('memory', $concept) \
+           -> relates_to -> personality:rust_love SET weight = 0.2;"
+    )
+    .bind(("concept", concept.to_string()))
+    .await?;
+
     Ok(created)
 }
 
