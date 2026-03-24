@@ -119,14 +119,14 @@ I.R.I.S. の開発・実行環境は、ホストOSをクリーンに保ち、複
 * **[Docker Engine](https://docs.docker.com/engine/install/)**
 * **[Docker Compose](https://docs.docker.com/compose/install/)** (v2系)
 
-### 4.3 コンテナ・アーキテクチャ
-システムは `docker-compose.yml` によって以下の3つのサービスとして起動します。
+### 4.3 コンテナ・アーキテクチャ (Dev / Release 分離)
+本プロジェクトは、開発時の利便性（Windows等への対応・ホットリロード）と、本番稼働時（Raspberry Pi 5・カメラデバイス連携）の要件が異なるため、Docker Composeファイルを分割しています。
 
-1. **`iris-core`**: Rustアプリケーション本体。カメラデバイス (`/dev/video0`) をマウントして動作します。
-2. **`surrealdb`**: グラフデータベース。NVMe SSD上のボリュームに記憶を永続化します。
-3. **`ollama`**: LLMランタイム。Gemma 3nモデルをホストし、`iris-core` からの推論リクエストを処理します。
+1. `docker-compose.yml` (ベース共通設定: ネットワーク・環境変数)
+2. `docker-compose.dev.yml` (Windows開発用: ソースコードマウントあり、カメラマウントなし)
+3. `docker-compose.release.yml` (本番用: カメラマウントあり、軽量ランタイムビルド)
 
-### 4.4 環境構築ステップ
+### 4.4 環境構築と起動ステップ
 
 1. **リポジトリのクローンと環境変数設定**
    ```bash
@@ -134,6 +134,7 @@ I.R.I.S. の開発・実行環境は、ホストOSをクリーンに保ち、複
    cd project-iris
    cp .env.example .env
    ```
+
 2. **Ollama コンテナの事前準備（Gemma 3n モデルのプル）**
    初回のみ、Ollamaコンテナを立ち上げてモデルをダウンロードしておきます。
    ```bash
@@ -141,12 +142,18 @@ I.R.I.S. の開発・実行環境は、ホストOSをクリーンに保ち、複
    docker compose exec ollama ollama run gemma3n
    # プロンプトが立ち上がったら /bye で抜けます
    ```
-3. **システム全体のビルドと起動**
-   すべてのコンテナをバックグラウンドで起動します。
-   ```bash
-   docker compose up -d --build
-   ```
-   *※Rustの初回コンパイルとOpenCVのビルドが含まれるため、初回の `build` には時間がかかります。*
+
+3. **システムのビルドと起動**
+   環境に合わせて以下のコマンドで起動します。
+
+   * **Windows等での開発時 (Dev)**
+     ```bash
+     docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+     ```
+   * **Raspberry Pi 5 での実機稼働時 (Release)**
+     ```bash
+     docker compose -f docker-compose.yml -f docker-compose.release.yml up -d --build
+     ```
 
 4. **ログの確認と停止**
    ```bash

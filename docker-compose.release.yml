@@ -1,0 +1,23 @@
+services:
+  # -----------------------------------------------
+  # 本番稼働用 (Release) - Raspberry Pi 5 ターゲット
+  # -----------------------------------------------
+  iris-core:
+    build:
+      target: runtime
+    restart: unless-stopped
+    volumes:
+      # 本番稼働時は軽量バイナリのみを実行。エピソード記憶のみマウント
+      - memories_data:/var/iris/memories
+    # カメラデバイスをマウント（OpenCV実稼働）
+    devices:
+      - /dev/video0:/dev/video0
+    # ENTRYPOINT は Dockerfile コンテナ側に依存
+
+  surrealdb:
+    restart: unless-stopped
+    # 本番は永続化のためにNVMe上のデータベースファイルを使用
+    command: start --log info --user root --pass root file:/mydata/iris.db
+
+  ollama:
+    restart: unless-stopped

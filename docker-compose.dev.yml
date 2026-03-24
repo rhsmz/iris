@@ -1,0 +1,27 @@
+services:
+  # -----------------------------------------------
+  # 開発用 (Dev) - Windows 開発ターゲット
+  # -----------------------------------------------
+  iris-core:
+    build:
+      target: builder
+    volumes:
+      # ソースコードをマウントしてホットリロードに対応
+      - .:/app
+      # cargo / target キャッシュでビルドを高速化
+      - cargo_cache:/usr/local/cargo/registry
+      - target_cache:/app/target
+      - memories_data:/var/iris/memories
+    # Windowsにはカメラデバイスがないためマウントしない（Vision機能はモックまたはスキップ）
+    command: cargo run
+
+  surrealdb:
+    # 開発用はインメモリ・トレースログモードで高速起動
+    command: start --log trace --user root --pass root memory
+
+# -----------------------------------------------
+# 開発専用の追加ボリューム
+# -----------------------------------------------
+volumes:
+  cargo_cache:
+  target_cache:
