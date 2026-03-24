@@ -48,10 +48,10 @@ $$V = e^{-\frac{t}{S}}$$
 ## コンテナ構成（Docker）
 
 ```
-docker-compose.yml
-├── iris-core    # Rustアプリ本体（ポート 3000）
-├── surrealdb    # グラフDB（ポート 8000）
-└── ollama       # LLM ランタイム（ポート 11434）
+Project Root
+├── docker-compose.yml         # 共通ベース（ネットワーク・ボリューム・環境変数・Ollama・SurrealDB基本設定）
+├── docker-compose.dev.yml     # Windows開発用（ソースコード・キャッシュマウント、カメラなし、自動ビルド）
+└── docker-compose.release.yml # Raspberry Pi本番用（カメラマウント、軽量ランタイムビルド）
 ```
 
 ## 技術スタック
