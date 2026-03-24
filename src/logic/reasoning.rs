@@ -1,6 +1,8 @@
 use crate::memory::graph::{fetch_top_memories, spread_activation, RetrievedMemory};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 #[derive(Serialize)]
 pub struct OllamaRequest {
@@ -20,6 +22,7 @@ pub struct OllamaClient {
     base_url: String,
     model: String,
     memories_path: String,
+    history: Arc<Mutex<VecDeque<String>>>,
 }
 
 impl OllamaClient {
@@ -31,6 +34,7 @@ impl OllamaClient {
             base_url: base_url.to_string(),
             model: model.to_string(),
             memories_path,
+            history: Arc::new(Mutex::new(VecDeque::with_capacity(5))),
         }
     }
 
@@ -52,7 +56,18 @@ impl OllamaClient {
         let prompt = self.build_prompt(user_message, &context);
 
         // 5. Ollama API に送信する
-        self.call_ollama(&prompt).await
+        let response = self.call_ollama(&prompt).await?;
+
+        // 6. 履歴の更新
+        {
+            let mut guard = self.history.lock().unwrap();
+            if guard.len() >= 5 {
+                guard.pop_front();
+            }
+            guard.push_back(format!("主人: {}\nI.R.I.S.: {}", user_message, response));
+        }
+
+        Ok(response)
     }
 
     /// 記憶ノードのファイルパスからエピソードテキストを読み込み、コンテキスト文字列を構築する
@@ -79,14 +94,26 @@ impl OllamaClient {
             回路がサビついているかのような愛嬌があり、でも本質は鋭い。\
             ユーザーのことを「主人」と呼ぶ。返答は日本語で行う。";
 
-        if context.is_empty() {
-            format!("[System: {}]\n主人: {}\nI.R.I.S.: ", system, user_message)
+        let history_str = {
+            let guard = self.history.lock().unwrap();
+            if guard.is_empty() {
+                String::new()
+            } else {
+                let lines: Vec<String> = guard.iter().cloned().collect();
+                format!("== 直近の会話履歴 ==\n{}\n\n", lines.join("\n"))
+            }
+        };
+
+        let context_str = if context.is_empty() {
+            String::new()
         } else {
-            format!(
-                "[System: {}]\n{}\n\n主人: {}\nI.R.I.S.: ",
-                system, context, user_message
-            )
-        }
+            format!("{}\n\n", context)
+        };
+
+        format!(
+            "[System: {}]\n{}{}\n主人: {}\nI.R.I.S.: ",
+            system, context_str, history_str, user_message
+        )
     }
 
     /// Ollama API を呼び出して推論結果を取得する
@@ -123,6 +150,7 @@ mod tests {
             base_url: "http://localhost:11434".to_string(),
             model: "gemma3n".to_string(),
             memories_path: "/tmp/iris_memories".to_string(),
+            history: Arc::new(Mutex::new(VecDeque::with_capacity(5))),
         }
     }
 
