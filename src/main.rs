@@ -40,7 +40,7 @@ async fn main() {
         let mut ticker = interval(Duration::from_secs(3600));
         loop {
             ticker.tick().await;
-            if let Err(e) = decay_vividness(0.05).await {
+            if let Err(e) = decay_vividness().await {
                 eprintln!("⚠️ 記憶風化バッチエラー: {}", e);
             }
         }

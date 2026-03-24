@@ -1,7 +1,6 @@
-use crate::memory::graph::{fetch_top_memories, spread_activation};
+use crate::memory::graph::{fetch_top_memories, spread_activation, RetrievedMemory};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::fs;
 
 #[derive(Serialize)]
 pub struct OllamaRequest {
@@ -57,19 +56,17 @@ impl OllamaClient {
     }
 
     /// 記憶ノードのファイルパスからエピソードテキストを読み込み、コンテキスト文字列を構築する
-    fn build_context(&self, memories: &[crate::memory::graph::MemoryNode]) -> String {
+    fn build_context(&self, memories: &[RetrievedMemory]) -> String {
         if memories.is_empty() {
             return String::new();
         }
 
         let mut parts = vec!["== 関連する記憶・エピソード ==".to_string()];
         for mem in memories {
-            let episode_text = mem.file_path.as_deref()
-                .and_then(|path| fs::read_to_string(path).ok())
-                .unwrap_or_else(|| format!("[概念: {}]", mem.concept));
+            let snippet = mem.content.lines().next().unwrap_or("[内容なし]");
             parts.push(format!(
                 "- {} (鮮明度: {:.2})\n  {}",
-                mem.concept, mem.vividness, episode_text.lines().next().unwrap_or("")
+                mem.node.concept, mem.node.vividness, snippet
             ));
         }
         parts.join("\n")
@@ -118,7 +115,7 @@ impl OllamaClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::graph::MemoryNode;
+    use crate::memory::graph::RetrievedMemory;
 
     fn make_client() -> OllamaClient {
         OllamaClient {

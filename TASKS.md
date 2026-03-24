@@ -60,12 +60,12 @@ README のロードマップと連動しています。
   - [x] デバッグ用インメモリSurrealDBを用いた `insert_memory` の機能テストの作成
 
 - **4.3 連想想起ロジックと忘却曲線**
-  - [ ] 忘却曲線式（$V = e^{-t/S}$）に基づく鮮明度（`vividness`）減衰計算関数の実装
-  - [ ] `MemoryNode` の `last_accessed` を現在日時に更新する専用クエリ関数の実装
-  - [ ] `fetch_top_memories` を改修し、`vividness` と `emotion_score` の合計値によるソートクエリを実装
-  - [ ] 上位ノードの `file_path` を用いてCMSからテキストを自動で読み込むマージ処理の実装
-  - [ ] グラフエッジ（`RelatesTo`）を辿って関連ノードを取得する `spread_activation` クエリの実装
-  - [ ] 連想伝播と忘却曲線の結合単体テストを作成・実行
+  - [x] 忘却曲線式（$V = e^{-t/S}$）に基づく鮮明度（`vividness`）減衰計算関数の実装
+  - [x] `MemoryNode` の `last_accessed` を現在日時に更新する専用クエリ関数の実装
+  - [x] `fetch_top_memories` を改修し、`vividness` と `emotion_score` の合計値によるソートクエリを実装
+  - [x] 上位ノードの `file_path` を用いてCMSからテキストを自動で読み込むマージ処理の実装
+  - [x] グラフエッジ（`RelatesTo`）を辿って関連ノードを取得する `spread_activation` クエリの実装
+  - [x] 連想伝播と忘却曲線の結合単体テストを作成・実行
 
 - **4.4 人格コアノードの連携**
   - [ ] 「皮肉」「ユーモア」「Rustへの愛」を持つ特殊な `PersonalityNode` の定義

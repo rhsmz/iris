@@ -35,6 +35,13 @@ pub struct RelatesTo {
     pub weight: f32,
 }
 
+/// DBから取得されたメタデータとCMS内のテキスト本文を結合した構造体
+#[derive(Debug, Clone)]
+pub struct RetrievedMemory {
+    pub node: MemoryNode,
+    pub content: String,
+}
+
 /// 人格コアノード（思考のバイアス）
 /// このノードへのエッジ重みが高いほど、連想時に「Rusty」な方向へ引かれる
 #[derive(Debug, Serialize, Deserialize)]
@@ -109,35 +116,52 @@ pub async fn insert_memory(
     Ok(created)
 }
 
-/// Spreading Activation: アクセスされたノードの隣接ノードの鮮明度を向上させる
+/// Spreading Activation: アクセスされたノードの隣接ノードの鮮明度を連想によって向上させる
 pub async fn spread_activation(concept: &str) -> surrealdb::Result<()> {
     db().query(
-        "UPDATE memory SET vividness = math::min(vividness + 0.1, 1.0), last_accessed = time::unix() \
-         WHERE <-relates_to<-(memory WHERE id = $id)"
+        "UPDATE memory SET \
+         vividness = math::min(vividness + 0.2, 1.0), \
+         last_accessed = time::unix() \
+         WHERE id IN (SELECT VALUE <-relates_to<-memory.id FROM type::thing('memory', $concept)) \
+         OR id IN (SELECT VALUE ->relates_to->memory.id FROM type::thing('memory', $concept))"
     )
-    .bind(("id", format!("memory:{}", concept)))
+    .bind(("concept", concept.to_string()))
     .await?;
 
     Ok(())
 }
 
-/// 鮮明度の高い上位 N 件の記憶ノードを取得する（RAGコンテキスト構築用）
-pub async fn fetch_top_memories(limit: u32) -> surrealdb::Result<Vec<MemoryNode>> {
+/// 鮮明度と感情スコアの高い上位 N 件の記憶を取得し、CMSのエピソード本文とマージして返す（RAGコンテキスト構築用）
+pub async fn fetch_top_memories(limit: u32) -> surrealdb::Result<Vec<RetrievedMemory>> {
+    // vividness + (emotion_score / 10.0) を基準にソートする
     let mut result = db()
-        .query("SELECT * FROM memory ORDER BY vividness DESC LIMIT $limit")
+        .query("SELECT * FROM memory ORDER BY (vividness + (emotion_score / 10.0)) DESC LIMIT $limit")
         .bind(("limit", limit))
         .await?;
 
     let nodes: Vec<MemoryNode> = result.take(0)?;
-    Ok(nodes)
+    let mut memories = Vec::new();
+    
+    for node in nodes {
+        let content = if let Some(ref path) = node.file_path {
+            crate::memory::cms::load_markdown(path).unwrap_or_else(|_| "".to_string())
+        } else {
+            "".to_string()
+        };
+        memories.push(RetrievedMemory { node, content });
+    }
+
+    Ok(memories)
 }
 
-/// 時間経過による記憶風化処理（Vividness 減衰バッチ）
-pub async fn decay_vividness(decay_rate: f32) -> surrealdb::Result<()> {
+/// エビングハウスの忘却曲線関数（V = e^{-t/S}）に基づく鮮明度の減衰バッチ処理
+pub async fn decay_vividness() -> surrealdb::Result<()> {
+    // time::unix() - last_accessed は秒単位。これを日単位(86400秒)で割り、
+    // emotion_score（記憶の強度S、最低1.0）を用いた指数関数的減衰を計算する。
     db().query(
-        "UPDATE memory SET vividness = math::max(vividness * $rate, 0.0)"
+        "UPDATE memory SET \
+         vividness = math::pow(math::e(), -((time::unix() - last_accessed) / 86400.0) / math::max(emotion_score, 1.0))"
     )
-    .bind(("rate", 1.0 - decay_rate))
     .await?;
 
     Ok(())
@@ -197,5 +221,57 @@ mod tests {
         let file_path = node.file_path.expect("file_path should be populated by CMS");
         let loaded = crate::memory::cms::load_markdown(&file_path).expect("Failed to load markdown");
         assert_eq!(loaded, content);
+    }
+
+    #[tokio::test]
+    async fn test_decay_and_spread() {
+        use tempfile::tempdir;
+        use std::env;
+
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let temp_path_str = temp_dir.path().to_str().unwrap().to_string();
+        env::set_var("MEMORIES_PATH", &temp_path_str);
+        
+        env::set_var("SURREAL_URL", "ws://surrealdb:8000");
+        if let Err(e) = connect_to_db().await {
+            println!("Skipping integration test due to DB connection failure: {}", e);
+            return;
+        }
+
+        let unique = uuid::Uuid::new_v4().to_string();
+        let concept_a = format!("concept_A_{}", unique);
+        let concept_b = format!("concept_B_{}", unique);
+        
+        // 5.0 (Vividness 0.5) で A と B を保存
+        let _ = insert_memory(&concept_a, 5.0, "test", "Content A").await.unwrap().unwrap();
+        let _ = insert_memory(&concept_b, 5.0, "test", "Content B").await.unwrap().unwrap();
+        
+        // A -> B へ関連付け
+        db().query("RELATE type::thing('memory', $a)->relates_to->type::thing('memory', $b) SET weight = 1.0")
+            .bind(("a", concept_a.clone()))
+            .bind(("b", concept_b.clone()))
+            .await
+            .unwrap();
+
+        let b_node: Option<MemoryNode> = db().select(("memory", &concept_b)).await.unwrap();
+        let b_node = b_node.unwrap();
+        
+        // 時間を過去に進めて忘却を発動させる (30日経過)
+        db().query("UPDATE type::thing('memory', $b) SET last_accessed = time::unix() - 86400 * 30")
+            .bind(("b", concept_b.clone()))
+            .await.unwrap();
+            
+        decay_vividness().await.unwrap();
+        
+        let b_node_decayed: Option<MemoryNode> = db().select(("memory", &concept_b)).await.unwrap();
+        let b_node_decayed = b_node_decayed.unwrap();
+        assert!(b_node_decayed.vividness < b_node.vividness, "Vividness did not decay properly: BEFORE={}, AFTER={}", b_node.vividness, b_node_decayed.vividness);
+        
+        // A へ Spreading Activation を適用することで、B のividness が向上するか確認
+        spread_activation(&concept_a).await.unwrap();
+        
+        let b_node_spread: Option<MemoryNode> = db().select(("memory", &concept_b)).await.unwrap();
+        let b_node_spread = b_node_spread.unwrap();
+        assert!(b_node_spread.vividness > b_node_decayed.vividness, "Vividness did not spread properly");
     }
 }
