@@ -30,9 +30,10 @@ sequenceDiagram
     Memory-->>Logic: RetrievedMemory群（メタデータ＋本文）
 
     Note over Logic,Ollama: プロンプト合成と推論
-    Logic->>Logic: Rustyペルソナ＋記憶コンテキスト合成
-    Logic->>Ollama: プロンプト送信
-    Ollama-->>Logic: Gemma 3n 推論結果
+    Logic->>Logic: Rustyペルソナ＋記憶コンテキスト＋直近会話履歴の合成
+    Logic->>Ollama: プロンプト送信 (stream: true)
+    Ollama-->>Logic: Streaming JSONチャンク応答
+    Logic->>Logic: チャンク受信用コールバック実行
 
     alt 不明な情報がある場合
         Logic->>Action: Tavily API で検索（非同期）
