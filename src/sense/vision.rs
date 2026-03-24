@@ -18,7 +18,9 @@ impl VisionEngine for MockVisionEngine {
 
 pub async fn start_vision_loop() {
     println!("Starting Vision Subsystem...");
-    let engine = MockVisionEngine { user_present: false };
+    let engine = MockVisionEngine {
+        user_present: false,
+    };
 
     loop {
         // Sleep to simulate frame processing time

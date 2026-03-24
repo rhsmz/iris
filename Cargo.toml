@@ -24,6 +24,7 @@ surrealdb = { version = "2" }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.22.0", features = ["v4"] }
 futures-util = "0.3.32"
+async-trait = "0.1.89"
 
 [dev-dependencies]
 tempfile = "3.27.0"

@@ -1,17 +1,20 @@
-use axum::{
-    routing::{get, post},
-    Router,
-    Json,
-    extract::State,
-    response::{IntoResponse, sse::{Event, Sse}},
-};
-use futures_util::stream::{self, Stream};
-use std::convert::Infallible;
-use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
-use std::sync::Arc;
+use crate::action::research::TavilyClient;
 use crate::logic::reasoning::OllamaClient;
 use crate::memory::graph::insert_memory;
+use axum::{
+    extract::State,
+    response::{
+        sse::{Event, Sse},
+        IntoResponse,
+    },
+    routing::{get, post},
+    Json, Router,
+};
+use futures_util::stream::{self, Stream};
+use serde::{Deserialize, Serialize};
+use std::convert::Infallible;
+use std::net::SocketAddr;
+use std::sync::Arc;
 
 /// 共有アプリケーション状態
 pub struct AppState {
@@ -36,10 +39,7 @@ pub struct ErrorResponse {
 
 impl IntoResponse for ErrorResponse {
     fn into_response(self) -> axum::response::Response {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(self)
-        ).into_response()
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(self)).into_response()
     }
 }
 
@@ -62,7 +62,9 @@ pub async fn start_server(state: Arc<AppState>) {
 
     println!("🌟 I.R.I.S. Sense Server listening on {addr}");
 
-    let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind address");
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("Failed to bind address");
     axum::serve(listener, app).await.expect("Server error");
 }
 
@@ -72,14 +74,24 @@ async fn health_check() -> &'static str {
 
 /// / api/chat ハンドラ
 /// Sense → Memory（Spreading Activation）→ Logic（RAG + Gemma 3n）→ Memory（保存）のパイプラインを実行する
+/// TAVILY_API_KEY が設定されている場合は自律リサーチ機能を有効化する
 async fn handle_chat(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<ChatRequest>,
 ) -> Result<Json<ChatResponse>, ErrorResponse> {
     println!("💬 受信: {}", payload.message);
 
-    // Logic + RAG パイプラインを実行する
-    match state.ollama.ask_with_context(&payload.message).await {
+    // Tavily クライアントが利用可能なら自律リサーチ付き推論を使う
+    let result = if let Ok(tavily) = TavilyClient::from_env() {
+        state
+            .ollama
+            .ask_with_research(&payload.message, &tavily)
+            .await
+    } else {
+        state.ollama.ask_with_context(&payload.message).await
+    };
+
+    match result {
         Ok(response) => {
             // 新しい記憶として保存する（emotion_score はデフォルト 5.0）
             let _ = insert_memory(&payload.message, 5.0, "", &response).await;
@@ -108,21 +120,29 @@ async fn handle_chat_stream(
 
     // Logic 側を非同期タスクとしてバックグラウンドで走らせる
     tokio::spawn(async move {
-        match state.ollama.ask_with_context_stream(&message, tx.clone()).await {
+        match state
+            .ollama
+            .ask_with_context_stream(&message, tx.clone())
+            .await
+        {
             Ok(full_response) => {
                 // 完了後に記憶を保存
                 let _ = insert_memory(&message, 5.0, "", &full_response).await;
             }
             Err(e) => {
                 eprintln!("❌ ストリーミング推論エラー: {e}");
-                let _ = tx.send("回路がサビすぎて……少し待っていただけますか。".to_string()).await;
+                let _ = tx
+                    .send("回路がサビすぎて……少し待っていただけますか。".to_string())
+                    .await;
             }
         }
     });
 
     // Receiver を Stream に変換して SSE レスポンスとして返す
     let stream = stream::unfold(rx, |mut rx| async move {
-        rx.recv().await.map(|chunk| (Ok(Event::default().data(chunk)), rx))
+        rx.recv()
+            .await
+            .map(|chunk| (Ok(Event::default().data(chunk)), rx))
     });
 
     Sse::new(stream)
@@ -131,7 +151,10 @@ async fn handle_chat_stream(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::{Request, StatusCode}};
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
     use tower::ServiceExt;
 
     #[tokio::test]
@@ -139,7 +162,12 @@ mod tests {
         let app = Router::new().route("/health", get(health_check));
 
         let response = app
-            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
@@ -158,12 +186,12 @@ mod tests {
     async fn test_chat_endpoint_error_handling() {
         use crate::logic::reasoning::OllamaClient;
         use std::sync::Arc;
-        
+
         if let Err(e) = crate::memory::graph::connect_to_db().await {
             println!("Skipping chat endpoint test because SurrealDB is unavailable: {e}");
             return;
         }
-        
+
         let client = OllamaClient::new("http://127.0.0.1:1", "dummy_model");
         let state = Arc::new(AppState { ollama: client });
         let app = Router::new()

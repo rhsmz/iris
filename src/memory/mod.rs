@@ -2,4 +2,6 @@
 pub mod cms;
 pub mod graph;
 
-pub use graph::{connect_to_db, insert_memory, spread_activation, fetch_top_memories, decay_vividness};
+pub use graph::{
+    connect_to_db, decay_vividness, fetch_top_memories, insert_memory, spread_activation,
+};
