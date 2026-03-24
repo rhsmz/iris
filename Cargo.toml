@@ -11,7 +11,7 @@ tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 
 # HTTP クライアント（Ollama / Tavily API 通信）
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
 
 # シリアライズ / デシリアライズ
 serde = { version = "1", features = ["derive"] }
@@ -23,6 +23,7 @@ surrealdb = { version = "2" }
 # 時刻処理（記憶タイムスタンプ・忘却曲線計算）
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.22.0", features = ["v4"] }
+futures-util = "0.3.32"
 
 [dev-dependencies]
 tempfile = "3.27.0"

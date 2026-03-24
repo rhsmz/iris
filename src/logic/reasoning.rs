@@ -55,8 +55,13 @@ impl OllamaClient {
         // 4. Rusty ペルソナ + 記憶コンテキスト + ユーザーメッセージからプロンプトを構築する
         let prompt = self.build_prompt(user_message, &context);
 
-        // 5. Ollama API に送信する
-        let response = self.call_ollama(&prompt).await?;
+        // 5. Ollama API にストリーミング送信する
+        let response = self.call_ollama_stream(&prompt, |chunk| {
+            use std::io::Write;
+            print!("{}", chunk);
+            let _ = std::io::stdout().flush();
+        }).await?;
+        println!(); // 最後に改行
 
         // 6. 履歴の更新
         {
@@ -116,7 +121,8 @@ impl OllamaClient {
         )
     }
 
-    /// Ollama API を呼び出して推論結果を取得する
+    /// Ollama API を呼び出して推論結果を取得する（非ストリーミング・互換用）
+    #[allow(dead_code)]
     async fn call_ollama(
         &self,
         prompt: &str,
@@ -136,6 +142,52 @@ impl OllamaClient {
 
         let parsed: OllamaResponse = res.json().await?;
         Ok(parsed.response)
+    }
+
+    /// Ollama API からストリーミングレスポンスを受け取る
+    pub async fn call_ollama_stream<F>(
+        &self,
+        prompt: &str,
+        mut callback: F,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>
+    where
+        F: FnMut(String) + Send + 'static,
+    {
+        use futures_util::StreamExt;
+
+        let request_body = OllamaRequest {
+            model: self.model.clone(),
+            prompt: prompt.to_string(),
+            stream: true,
+        };
+
+        let res = self
+            .client
+            .post(&format!("{}/api/generate", self.base_url))
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let mut stream = res.bytes_stream();
+        let mut full_response = String::new();
+
+        while let Some(chunk_result) = stream.next().await {
+            let chunk = chunk_result?;
+            if let Ok(text) = String::from_utf8(chunk.to_vec()) {
+                // チャンクは複数のJSONオブジェクトが連結している場合があるため行分割するか試す
+                for line in text.lines() {
+                    if line.is_empty() {
+                        continue;
+                    }
+                    if let Ok(parsed) = serde_json::from_str::<OllamaResponse>(line) {
+                        callback(parsed.response.clone());
+                        full_response.push_str(&parsed.response);
+                    }
+                }
+            }
+        }
+
+        Ok(full_response)
     }
 }
 
