@@ -28,7 +28,7 @@ pub fn create_daily_directory() -> io::Result<PathBuf> {
 pub fn save_markdown(content: &str) -> io::Result<String> {
     let dir = create_daily_directory()?;
     let file_id = Uuid::new_v4().to_string();
-    let file_path = dir.join(format!("{}.md", file_id));
+    let file_path = dir.join(format!("{file_id}.md"));
 
     fs::write(&file_path, content)?;
 

@@ -94,7 +94,7 @@ pub async fn insert_memory(
     // 1. CMSへ実体テキストをMarkdownとして保存
     let file_path = cms::save_markdown(content).map_err(|e| {
         // IOエラーをSurrealDBのカスタムAPIエラーに変換して返す
-        surrealdb::Error::Api(surrealdb::error::Api::Query(format!("CMS save error: {}", e)))
+        surrealdb::Error::Api(surrealdb::error::Api::Query(format!("CMS save error: {e}")))
     })?;
 
     // 2. メタデータを構築してSurrealDBへ保存
@@ -211,13 +211,13 @@ mod tests {
         // 2. DB接続初期化
         env::set_var("SURREAL_URL", "ws://surrealdb:8000");
         if let Err(e) = connect_to_db().await {
-            println!("Skipping integration test due to DB connection failure (likely running outside of full compose network): {}", e);
+            println!("Skipping integration test due to DB connection failure (likely running outside of full compose network): {e}");
             return;
         }
 
         // 3. ランダムな概念名でinsert_memoryを実行（他テストとの競合防止）
         let unique_id = uuid::Uuid::new_v4().to_string();
-        let concept = format!("test_concept_{}", unique_id);
+        let concept = format!("test_concept_{unique_id}");
         let content = "This is the episode content for integration test.";
         let tags = "test, integration";
         
@@ -246,13 +246,13 @@ mod tests {
         
         env::set_var("SURREAL_URL", "ws://surrealdb:8000");
         if let Err(e) = connect_to_db().await {
-            println!("Skipping integration test due to DB connection failure: {}", e);
+            println!("Skipping integration test due to DB connection failure: {e}");
             return;
         }
 
         let unique = uuid::Uuid::new_v4().to_string();
-        let concept_a = format!("concept_A_{}", unique);
-        let concept_b = format!("concept_B_{}", unique);
+        let concept_a = format!("concept_A_{unique}");
+        let concept_b = format!("concept_B_{unique}");
         
         // 5.0 (Vividness 0.5) で A と B を保存
         let _ = insert_memory(&concept_a, 5.0, "test", "Content A").await.unwrap().unwrap();

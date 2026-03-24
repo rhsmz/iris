@@ -22,13 +22,13 @@ async fn main() {
     // 2. Memory 層の初期化（SurrealDB 接続・人格ノード配置）
     println!("🧠 Memory 層を初期化中...");
     if let Err(e) = connect_to_db().await {
-        eprintln!("❌ SurrealDB 接続エラー: {}. インメモリフォールバックを試みます。", e);
+        eprintln!("❌ SurrealDB 接続エラー: {e}. インメモリフォールバックを試みます。");
     } else {
         println!("✅ SurrealDB 接続完了");
     }
 
     // 3. Logic 層の初期化（Ollama クライアント）
-    println!("⚙️  Logic 層 (Ollama: {}) を初期化中...", ollama_model);
+    println!("⚙️  Logic 層 (Ollama: {ollama_model}) を初期化中...");
     let ollama_client = OllamaClient::new(&ollama_url, &ollama_model);
     println!("✅ Ollama クライアント準備完了");
 
@@ -41,7 +41,7 @@ async fn main() {
         loop {
             ticker.tick().await;
             if let Err(e) = decay_vividness().await {
-                eprintln!("⚠️ 記憶風化バッチエラー: {}", e);
+                eprintln!("⚠️ 記憶風化バッチエラー: {e}");
             }
         }
     });

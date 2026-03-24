@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub mod research;
 
 pub async fn init_action_layer() {
@@ -7,6 +8,6 @@ pub async fn init_action_layer() {
 }
 
 pub fn synthesize_response(text: &str) {
-    println!("[I.R.I.S.]: {}", text);
+    println!("[I.R.I.S.]: {text}");
     // Future TTS integration would go here.
 }

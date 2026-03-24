@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::memory::graph::{fetch_top_memories, spread_activation, RetrievedMemory};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -58,7 +59,7 @@ impl OllamaClient {
         // 5. Ollama API にストリーミング送信する
         let response = self.call_ollama_stream(&prompt, |chunk| {
             use std::io::Write;
-            print!("{}", chunk);
+            print!("{chunk}");
             let _ = std::io::stdout().flush();
         }).await?;
         println!(); // 最後に改行
@@ -69,7 +70,46 @@ impl OllamaClient {
             if guard.len() >= 5 {
                 guard.pop_front();
             }
-            guard.push_back(format!("主人: {}\nI.R.I.S.: {}", user_message, response));
+            guard.push_back(format!("主人: {user_message}\nI.R.I.S.: {response}"));
+        }
+
+        Ok(response)
+    }
+
+    /// ユーザーのメッセージに関連する記憶を取得し、RAG プロンプトを構築してストリーミング推論を行う
+    pub async fn ask_with_context_stream(
+        &self,
+        user_message: &str,
+        sender: tokio::sync::mpsc::Sender<String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        // 1. Spreading Activation
+        spread_activation(user_message).await.ok();
+
+        // 2. 上位の記憶ノードを取得
+        let mems = fetch_top_memories(5).await.unwrap_or_default();
+
+        // 3. コンテキスト構築
+        let context = self.build_context(&mems);
+
+        // 4. プロンプト生成
+        let prompt = self.build_prompt(user_message, &context);
+
+        // 5. ストリーミング送信
+        let response = self.call_ollama_stream(&prompt, move |chunk| {
+            // 非同期で送るために try_send か blocking_send が必要となるが、
+            // call_ollama_stream の callback は同期クロージャなので、
+            // block_in_place 等を使うか、try_send でこぼれたら諦めるか。
+            // しかし channel に余裕があれば try_send でOK。
+            let _ = sender.try_send(chunk);
+        }).await?;
+
+        // 6. 履歴更新
+        {
+            let mut guard = self.history.lock().unwrap();
+            if guard.len() >= 5 {
+                guard.pop_front();
+            }
+            guard.push_back(format!("主人: {user_message}\nI.R.I.S.: {response}"));
         }
 
         Ok(response)
@@ -112,12 +152,11 @@ impl OllamaClient {
         let context_str = if context.is_empty() {
             String::new()
         } else {
-            format!("{}\n\n", context)
+            format!("{context}\n\n")
         };
 
         format!(
-            "[System: {}]\n{}{}\n主人: {}\nI.R.I.S.: ",
-            system, context_str, history_str, user_message
+            "[System: {system}]\n{context_str}{history_str}\n主人: {user_message}\nI.R.I.S.: "
         )
     }
 
@@ -135,7 +174,7 @@ impl OllamaClient {
 
         let res = self
             .client
-            .post(&format!("{}/api/generate", self.base_url))
+            .post(format!("{}/api/generate", self.base_url))
             .json(&request_body)
             .send()
             .await?;
@@ -163,7 +202,7 @@ impl OllamaClient {
 
         let res = self
             .client
-            .post(&format!("{}/api/generate", self.base_url))
+            .post(format!("{}/api/generate", self.base_url))
             .json(&request_body)
             .send()
             .await?;
@@ -193,6 +232,7 @@ impl OllamaClient {
 
 #[cfg(test)]
 mod tests {
+    #![allow(unused_imports)]
     use super::*;
     use crate::memory::graph::RetrievedMemory;
 
