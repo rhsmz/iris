@@ -10,37 +10,44 @@ README 2.4 のハイブリッド・ストレージ（CMS）設計および Sprea
 sequenceDiagram
     participant User as ユーザー
     participant Axum as Sense層 (Axum)
+    participant Logic as Logic層 (Reasoning)
     participant Memory as Memory層 (SurrealDB)
     participant FS as エピソードCMS (FileSystem)
-    participant Logic as Logic層 (Ollama/Gemma 3n)
+    participant Ollama as Local LLM (Gemma 3n)
     participant Action as Action層 (Tavily)
 
     User->>Axum: POST /api/chat { message }
+    Axum->>Logic: ask_with_context(message)
 
-    Note over Axum,Memory: Spreading Activation
-    Axum->>Memory: キーワードで記憶ノードを検索
-    Memory-->>Axum: 関連ノード群（鮮明度・ファイルパス付き）
+    Note over Logic,Memory: Spreading Activation
+    Logic->>Memory: spread_activation(message)
+    Memory-->>Logic: 人格・関連ノードのVividness更新完了
 
-    Note over Axum,FS: CMS Retrieval - 動的コンテキスト注入
-    Axum->>FS: 鮮明度の高いノードのファイルパスを取得
-    FS-->>Axum: エピソードテキスト（Markdownファイル）
+    Note over Logic,FS: RAG コンテキスト抽出
+    Logic->>Memory: fetch_top_memories(limit)
+    Memory->>FS: パスに基づくエピソードの読み出し
+    FS-->>Memory: Markdownエピソード実体
+    Memory-->>Logic: RetrievedMemory群（メタデータ＋本文）
 
-    Note over Axum,Logic: RAG プロンプト構築
-    Axum->>Logic: プロンプト送信（記憶コンテキスト＋エピソード注入）
-    Logic-->>Axum: Gemma 3n 推論結果
+    Note over Logic,Ollama: プロンプト合成と推論
+    Logic->>Logic: Rustyペルソナ＋記憶コンテキスト合成
+    Logic->>Ollama: プロンプト送信
+    Ollama-->>Logic: Gemma 3n 推論結果
 
     alt 不明な情報がある場合
-        Axum->>Action: Tavily API で検索（非同期）
-        Action-->>Axum: 検索結果
-        Axum->>Logic: 再プロンプト（検索結果付き）
-        Logic-->>Axum: 最終応答
+        Logic->>Action: Tavily API で検索（非同期）
+        Action-->>Logic: 検索結果
+        Logic->>Ollama: 再プロンプト（検索結果付き）
+        Ollama-->>Logic: 最終応答
     end
 
-    Note over Axum,Memory: 新しい記憶の保存
-    Axum->>Memory: insert_memory（新ノード＋メタデータ）
-    Axum->>FS: エピソードをMarkdownファイルとして書き出し
-    Memory-->>Axum: 保存完了
+    Note over Logic,Memory: 新規記憶の保存と連想バイアス
+    Logic->>FS: 応答内容をMarkdownとして書き出し
+    FS-->>Logic: file_path
+    Logic->>Memory: insert_memory（ノード保存＋Personalityエッジ構築）
+    Memory-->>Logic: 保存完了
 
+    Logic-->>Axum: 推論完了
     Axum-->>User: ChatResponse { reply }
 ```
 
