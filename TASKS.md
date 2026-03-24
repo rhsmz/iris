@@ -54,10 +54,10 @@ README のロードマップと連動しています。
   - [x] CMS保存・読み込みの完全なライフサイクル単体テストの作成
 
 - **4.2 SurrealDB メタデータ永続化拡張**
-  - [ ] `MemoryNode` 構造体にエピソードファイルへの絶対パスを保持する `file_path` フィールドを追加
-  - [ ] `MemoryNode` 構造体にAIの主観的感情を保持する `emotion_score` フィールドを追加
-  - [ ] 既存の `insert_memory` を改修し、CMSの `save_markdown` を呼び出してパスを取得・結合する処理の実装
-  - [ ] デバッグ用インメモリSurrealDBを用いた `insert_memory` の機能テストの作成
+  - [x] `MemoryNode` 構造体にエピソードファイルへの絶対パスを保持する `file_path` フィールドを追加
+  - [x] `MemoryNode` 構造体にAIの主観的感情を保持する `emotion_score` フィールドを追加
+  - [x] 既存の `insert_memory` を改修し、CMSの `save_markdown` を呼び出してパスを取得・結合する処理の実装
+  - [x] デバッグ用インメモリSurrealDBを用いた `insert_memory` の機能テストの作成
 
 - **4.3 連想想起ロジックと忘却曲線**
   - [ ] 忘却曲線式（$V = e^{-t/S}$）に基づく鮮明度（`vividness`）減衰計算関数の実装

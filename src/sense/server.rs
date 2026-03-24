@@ -69,7 +69,7 @@ async fn handle_chat(
     let reply = match state.ollama.ask_with_context(&payload.message).await {
         Ok(response) => {
             // 新しい記憶として保存する（emotion_score はデフォルト 5.0）
-            let _ = insert_memory(&payload.message, 5.0, "", None).await;
+            let _ = insert_memory(&payload.message, 5.0, "", &payload.message).await;
             response
         }
         Err(e) => {

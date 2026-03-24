@@ -75,13 +75,22 @@ pub async fn connect_to_db() -> surrealdb::Result<()> {
     Ok(())
 }
 
-/// 新しい記憶ノードをグラフに挿入する
+use crate::memory::cms;
+
+/// 新しい記憶ノードをCMSへの実体保存と合わせてグラフに挿入する
 pub async fn insert_memory(
     concept: &str,
     emotion_score: f32,
     tags: &str,
-    file_path: Option<String>,
+    content: &str,
 ) -> surrealdb::Result<Option<MemoryNode>> {
+    // 1. CMSへ実体テキストをMarkdownとして保存
+    let file_path = cms::save_markdown(content).map_err(|e| {
+        // IOエラーをSurrealDBのカスタムAPIエラーに変換して返す
+        surrealdb::Error::Api(surrealdb::error::Api::Query(format!("CMS save error: {}", e)))
+    })?;
+
+    // 2. メタデータを構築してSurrealDBへ保存
     let initial_vividness = (emotion_score / 10.0).min(1.0);
     let node = MemoryNode {
         concept: concept.to_string(),
@@ -89,7 +98,7 @@ pub async fn insert_memory(
         last_accessed: chrono::Utc::now().timestamp(),
         emotion_score,
         tags: tags.to_string(),
-        file_path,
+        file_path: Some(file_path),
     };
 
     let created: Option<MemoryNode> = db()
@@ -151,5 +160,42 @@ mod tests {
         // emotion_score 15.0 → vividness 1.0（上限クランプ）
         let vividness = (15.0_f32 / 10.0).min(1.0);
         assert_eq!(vividness, 1.0);
+    }
+
+    #[tokio::test]
+    async fn insert_memory_cms_integration() {
+        use tempfile::tempdir;
+        use std::env;
+        
+        // 1. 一時ディレクトリでCMSをセットアップ
+        let temp_dir = tempdir().expect("Failed to create temp dir");
+        let temp_path_str = temp_dir.path().to_str().unwrap().to_string();
+        env::set_var("MEMORIES_PATH", &temp_path_str);
+        
+        // 2. DB接続初期化
+        env::set_var("SURREAL_URL", "ws://surrealdb:8000");
+        if let Err(e) = connect_to_db().await {
+            println!("Skipping integration test due to DB connection failure (likely running outside of full compose network): {}", e);
+            return;
+        }
+
+        // 3. ランダムな概念名でinsert_memoryを実行（他テストとの競合防止）
+        let unique_id = uuid::Uuid::new_v4().to_string();
+        let concept = format!("test_concept_{}", unique_id);
+        let content = "This is the episode content for integration test.";
+        let tags = "test, integration";
+        
+        let result = insert_memory(&concept, 8.0, tags, content).await;
+        assert!(result.is_ok(), "insert_memory failed");
+        
+        let node = result.unwrap().expect("No MemoryNode returned");
+        assert_eq!(node.concept, concept);
+        assert_eq!(node.tags, tags);
+        assert!(node.vividness > 0.0);
+        
+        // 4. CMSへの書き込み確認
+        let file_path = node.file_path.expect("file_path should be populated by CMS");
+        let loaded = crate::memory::cms::load_markdown(&file_path).expect("Failed to load markdown");
+        assert_eq!(loaded, content);
     }
 }

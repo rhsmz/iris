@@ -17,7 +17,7 @@ services:
 
   surrealdb:
     # 開発用はインメモリ・トレースログモードで高速起動
-    command: start --log trace --user root --pass root memory
+    command: start --log trace --user root --pass root --bind 0.0.0.0:8000 memory
 
 # -----------------------------------------------
 # 開発専用の追加ボリューム
