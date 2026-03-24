@@ -22,3 +22,7 @@ surrealdb = { version = "2" }
 
 # 時刻処理（記憶タイムスタンプ・忘却曲線計算）
 chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.22.0", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"

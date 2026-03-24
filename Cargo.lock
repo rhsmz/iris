@@ -1852,7 +1852,9 @@ dependencies = [
  "serde",
  "serde_json",
  "surrealdb",
+ "tempfile",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
