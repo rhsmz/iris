@@ -1,8 +1,13 @@
+#![allow(dead_code)]
+use crate::action::research::{extract_search_query, format_search_results, ResearchEngine};
 use crate::memory::graph::{fetch_top_memories, spread_activation, RetrievedMemory};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+
+/// 自律リサーチの最大リトライ回数
+const MAX_RESEARCH_RETRIES: usize = 2;
 
 #[derive(Serialize)]
 pub struct OllamaRequest {
@@ -27,8 +32,8 @@ pub struct OllamaClient {
 
 impl OllamaClient {
     pub fn new(base_url: &str, model: &str) -> Self {
-        let memories_path = std::env::var("MEMORIES_PATH")
-            .unwrap_or_else(|_| "/var/iris/memories".to_string());
+        let memories_path =
+            std::env::var("MEMORIES_PATH").unwrap_or_else(|_| "/var/iris/memories".to_string());
         Self {
             client: Client::new(),
             base_url: base_url.to_string(),
@@ -56,11 +61,13 @@ impl OllamaClient {
         let prompt = self.build_prompt(user_message, &context);
 
         // 5. Ollama API にストリーミング送信する
-        let response = self.call_ollama_stream(&prompt, |chunk| {
-            use std::io::Write;
-            print!("{}", chunk);
-            let _ = std::io::stdout().flush();
-        }).await?;
+        let response = self
+            .call_ollama_stream(&prompt, |chunk| {
+                use std::io::Write;
+                print!("{chunk}");
+                let _ = std::io::stdout().flush();
+            })
+            .await?;
         println!(); // 最後に改行
 
         // 6. 履歴の更新
@@ -69,7 +76,48 @@ impl OllamaClient {
             if guard.len() >= 5 {
                 guard.pop_front();
             }
-            guard.push_back(format!("主人: {}\nI.R.I.S.: {}", user_message, response));
+            guard.push_back(format!("主人: {user_message}\nI.R.I.S.: {response}"));
+        }
+
+        Ok(response)
+    }
+
+    /// ユーザーのメッセージに関連する記憶を取得し、RAG プロンプトを構築してストリーミング推論を行う
+    pub async fn ask_with_context_stream(
+        &self,
+        user_message: &str,
+        sender: tokio::sync::mpsc::Sender<String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        // 1. Spreading Activation
+        spread_activation(user_message).await.ok();
+
+        // 2. 上位の記憶ノードを取得
+        let mems = fetch_top_memories(5).await.unwrap_or_default();
+
+        // 3. コンテキスト構築
+        let context = self.build_context(&mems);
+
+        // 4. プロンプト生成
+        let prompt = self.build_prompt(user_message, &context);
+
+        // 5. ストリーミング送信
+        let response = self
+            .call_ollama_stream(&prompt, move |chunk| {
+                // 非同期で送るために try_send か blocking_send が必要となるが、
+                // call_ollama_stream の callback は同期クロージャなので、
+                // block_in_place 等を使うか、try_send でこぼれたら諦めるか。
+                // しかし channel に余裕があれば try_send でOK。
+                let _ = sender.try_send(chunk);
+            })
+            .await?;
+
+        // 6. 履歴更新
+        {
+            let mut guard = self.history.lock().unwrap();
+            if guard.len() >= 5 {
+                guard.pop_front();
+            }
+            guard.push_back(format!("主人: {user_message}\nI.R.I.S.: {response}"));
         }
 
         Ok(response)
@@ -97,7 +145,9 @@ impl OllamaClient {
         let system = "あなたは I.R.I.S.（アイリス）というAIです。\
             「Rusty」なキャラクター: 高度な知性を持ちながら、時にトボけたユーモアや皮肉を交える。\
             回路がサビついているかのような愛嬌があり、でも本質は鋭い。\
-            ユーザーのことを「主人」と呼ぶ。返答は日本語で行う。";
+            ユーザーのことを「主人」と呼ぶ。返答は日本語で行う。\
+            もし回答にWeb上の最新情報が必要だと判断した場合、回答の中に [SEARCH: 検索クエリ] というタグを含めること。\
+            例: [SEARCH: Rust 2025 新機能]。検索結果が自動的に提供された後、改めて回答する。";
 
         let history_str = {
             let guard = self.history.lock().unwrap();
@@ -112,13 +162,80 @@ impl OllamaClient {
         let context_str = if context.is_empty() {
             String::new()
         } else {
-            format!("{}\n\n", context)
+            format!("{context}\n\n")
         };
 
-        format!(
-            "[System: {}]\n{}{}\n主人: {}\nI.R.I.S.: ",
-            system, context_str, history_str, user_message
-        )
+        format!("[System: {system}]\n{context_str}{history_str}\n主人: {user_message}\nI.R.I.S.: ")
+    }
+
+    /// 自律リサーチ付き推論: LLMの出力に [SEARCH: ...] タグがあれば
+    /// Tavily API で検索し、結果をコンテキストに注入して再推論する
+    pub async fn ask_with_research(
+        &self,
+        user_message: &str,
+        researcher: &dyn ResearchEngine,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        // 1. 通常の推論を実行
+        spread_activation(user_message).await.ok();
+        let memories = fetch_top_memories(5).await.unwrap_or_default();
+        let memory_context = self.build_context(&memories);
+        let mut extra_context = String::new();
+
+        for attempt in 0..=MAX_RESEARCH_RETRIES {
+            let full_context = if extra_context.is_empty() {
+                memory_context.clone()
+            } else {
+                format!("{memory_context}\n\n{extra_context}")
+            };
+
+            let prompt = self.build_prompt(user_message, &full_context);
+
+            // Ollama でストリーミング推論
+            let response = self
+                .call_ollama_stream(&prompt, |chunk| {
+                    use std::io::Write;
+                    print!("{chunk}");
+                    let _ = std::io::stdout().flush();
+                })
+                .await?;
+            println!();
+
+            // 検索タグの検出
+            if let Some(query) = extract_search_query(&response) {
+                if attempt < MAX_RESEARCH_RETRIES {
+                    println!(
+                        "🔍 自律リサーチ発動: '{query}' (リトライ {}/{})",
+                        attempt + 1,
+                        MAX_RESEARCH_RETRIES
+                    );
+                    match researcher.search(&query).await {
+                        Ok(results) => {
+                            extra_context = format_search_results(&results);
+                            println!("📚 検索結果 {} 件を取得。再推論します...", results.len());
+                            continue; // 再推論
+                        }
+                        Err(e) => {
+                            eprintln!("⚠️ Tavily 検索エラー: {e}");
+                            // 検索失敗時はそのまま返す
+                        }
+                    }
+                }
+            }
+
+            // 履歴更新
+            {
+                let mut guard = self.history.lock().unwrap();
+                if guard.len() >= 5 {
+                    guard.pop_front();
+                }
+                guard.push_back(format!("主人: {user_message}\nI.R.I.S.: {response}"));
+            }
+
+            return Ok(response);
+        }
+
+        // ここには通常到達しないが、安全のため
+        Err("リサーチリトライ上限に到達しました".into())
     }
 
     /// Ollama API を呼び出して推論結果を取得する（非ストリーミング・互換用）
@@ -135,7 +252,7 @@ impl OllamaClient {
 
         let res = self
             .client
-            .post(&format!("{}/api/generate", self.base_url))
+            .post(format!("{}/api/generate", self.base_url))
             .json(&request_body)
             .send()
             .await?;
@@ -163,7 +280,7 @@ impl OllamaClient {
 
         let res = self
             .client
-            .post(&format!("{}/api/generate", self.base_url))
+            .post(format!("{}/api/generate", self.base_url))
             .json(&request_body)
             .send()
             .await?;
@@ -193,6 +310,7 @@ impl OllamaClient {
 
 #[cfg(test)]
 mod tests {
+    #![allow(unused_imports)]
     use super::*;
     use crate::memory::graph::RetrievedMemory;
 
