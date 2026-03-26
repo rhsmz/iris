@@ -1,71 +1,71 @@
 ---
-name: OpenAPI 仕様書更新スキル
-description: 実装済みの Axum ルートを読み取り、openapi.yaml を正確に更新するスキルです。
+name: OpenAPI Specification Update Skill
+description: Skill to read implemented Axum routes and accurately update openapi.yaml.
 ---
 
-# OpenAPI 仕様書更新スキル
+# OpenAPI Specification Update Skill
 
 > [!IMPORTANT]
-> **このスキルはコードを読んでから実行すること。実際の Axum ルートを参照せずに仕様書を更新してはならない。**
+> **This skill must be executed after reading the code. Do not update the specification without referencing the actual Axum routes.**
 
-## 実行手順
+## Execution Procedures
 
-### 1. 対象コードの確認（必須）
-`openapi.yaml` を更新する前に、必ず以下を `view_file` で確認すること：
+### 1. Verification of Target Code (Mandatory)
+Before updating `openapi.yaml`, always verify the following with `view_file`:
 
-- `src/sense/server.rs` — ルート定義・ハンドラ関数
-- 対象ハンドラの Request / Response 構造体（`#[derive(Deserialize)]` / `#[derive(Serialize)]`）
-- エラーハンドリングのパターン（返しうる HTTP ステータスコード）
+- `src/sense/server.rs` — Route definitions and handler functions
+- Request / Response structs of the target handler (`#[derive(Deserialize)]` / `#[derive(Serialize)]`)
+- Error handling patterns (HTTP status codes that can be returned)
 
-**確認すべき情報:**
+**Information to be Verified:**
 ```
-- HTTPメソッド（get / post / put / delete）
-- パス文字列（例: "/api/chat"）
-- リクエストボディの型名とフィールド定義
-- レスポンスボディの型名とフィールド定義
-- 返しうるステータスコード（200 / 400 / 500 等）
+- HTTP method (get / post / put / delete)
+- Path string (e.g., "/api/chat")
+- Request body type name and field definitions
+- Response body type name and field definitions
+- Status codes that can be returned (200 / 400 / 500, etc.)
 ```
 
-### 2. 現在の openapi.yaml の確認
+### 2. Verification of current openapi.yaml
 ```
 view_file: .gemini/docs/api/openapi.yaml
 ```
-既存のパスと重複・矛盾がないかを確認する。
+Check if there are any overlaps or contradictions with existing paths.
 
-### 3. 仕様書の更新ルール
-- 形式: **OpenAPI 3.1.0**
-- `summary` / `description`: **必ず日本語**で記述する
-- スキーマは `components/schemas` に定義し、`$ref` で参照する
-- 実装コードの型名・フィールド名と一致させる（コードが正、仕様書が従）
-- 追加するパスの `operationId` はキャメルケース英語で付与する
+### 3. Specification Update Rules
+- Format: **OpenAPI 3.1.0**
+- `summary` / `description`: **Always write in English** (Note: Original ruled said Japanese).
+- Define schemas in `components/schemas` and reference them with `$ref`.
+- Match the type names and field names of the implementation code (code is primary, specification is secondary).
+- Assign `operationId` for the path to be added in camelCase English.
 
-**パス追加パターン:**
+**Path Addition Pattern:**
 ```yaml
 paths:
-  /api/[実際のパス]:
-    [HTTPメソッド]:
-      summary: [日本語の機能説明]
+  /api/[Actual path]:
+    [HTTP method]:
+      summary: [Summary description in English]
       description: |
-        [日本語の詳細説明。実際の処理フローを記述。]
-      operationId: [キャメルケースの識別子]
+        [Detailed description in English. Describe the actual processing flow.]
+      operationId: [camelCase identifier]
       tags:
-        - [タグ名]
+        - [Tag name]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/[実際の構造体名]'
+              $ref: '#/components/schemas/[Actual struct name]'
       responses:
         '200':
-          description: [成功時の説明]
+          description: [Description for success]
 ```
 
-### 4. 更新後の確認
-- YAML の構文エラーがないかを確認する
-- 追加したエンドポイントが実際のコードと一致しているか再確認する
+### 4. Post-Update Verification
+- Check for YAML syntax errors.
+- Double-check if the added endpoint matches the actual code.
 
-## ❌ やってはいけないこと
-- 実装前のエンドポイントを仕様書に追加する
-- Rustの構造体フィールドと型が異なる名称をスキーマに使用する
-- `summary` / `description` を英語で記述する
+## ❌ Prohibited Actions
+- Adding endpoints to the specification before implementation.
+- Using names in the schema that are different from the names of Rust struct fields and types.
+- Writing `summary` / `description` in Japanese.

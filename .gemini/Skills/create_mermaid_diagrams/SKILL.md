@@ -1,55 +1,55 @@
 ---
-name: Mermaid 図作成スキル
-description: 実装済みコードを読み取り、正確な Mermaid ダイアグラムを `.gemini/docs/diagrams/` に作成するスキルです。
+name: Mermaid Diagram Creation Skill
+description: Skill to read implemented code and create accurate Mermaid diagrams in `.gemini/docs/diagrams/`.
 ---
 
-# Mermaid 図作成スキル
+# Mermaid Diagram Creation Skill
 
 > [!IMPORTANT]
-> **このスキルはコードを読んでから実行すること。実際のコードを参照せずに図を作成してはならない。**
+> **This skill must be executed after reading the code. Do not create diagrams without referencing the actual code.**
 
-## 実行手順
+## Execution Procedures
 
-### 1. 対象コードの確認（必須）
-図を作成する前に、必ず以下のコードを `view_file` で読み込むこと：
+### 1. Verification of Target Code (Mandatory)
+Before creating a diagram, always load the following code with `view_file`:
 
-| 図の種類 | 読むべきファイル |
+| Type of Diagram | Files to Read |
 |---|---|
-| シーケンス図 | 対象の `src/` 配下のハンドラ・サービス関数 |
-| ER図 | `src/memory/graph.rs` のスキーマ定義構造体 |
-| フローチャート | 対象の条件分岐ロジックを含む関数 |
-| クラス図 | 対象の `struct` / `trait` / `impl` 定義 |
+| Sequence Diagram | Handler/Service functions under the target `src/` |
+| ER Diagram | Schema definition structs in `src/memory/graph.rs` |
+| Flowchart | Functions containing the target conditional branch logic |
+| Class Diagram | Target `struct` / `trait` / `impl` definitions |
 
-### 2. 図の作成
-コードを読んだあと、実際の関数呼び出し順・構造体フィールド・フローを元に図を作成する。
+### 2. Creation of Diagrams
+After reading the code, create diagrams based on the actual function call order, struct fields, and flow.
 
-**シーケンス図の記述パターン:**
+**Sequence Diagram Description Pattern:**
 ```mermaid
 sequenceDiagram
-    participant A as [実際のモジュール名/関数名]
-    participant B as [実際のモジュール名/関数名]
-    A->>B: [実際の関数呼び出し名と引数]
-    B-->>A: [実際の戻り値の型]
+    participant A as [Actual module name/Function name]
+    participant B as [Actual module name/Function name]
+    A->>B: [Actual function call name and arguments]
+    B-->>A: [Actual return value type]
 ```
 
-**ER図の記述パターン:**
+**ER Diagram Description Pattern:**
 ```mermaid
 erDiagram
-    [実際の構造体名] {
-        [型] [実際のフィールド名] [PK/FK]
+    [Actual struct name] {
+        [Type] [Actual field name] [PK/FK]
     }
-    [構造体A] ||--o{ [構造体B] : "[実際のリレーション名]"
+    [Struct A] ||--o{ [Struct B] : "[Actual relation name]"
 ```
 
-### 3. ファイルへの保存
-- 保存先: `.gemini/docs/diagrams/`
-- 命名規則: `sequence_*.md` / `er_*.md` / `flowchart_*.md` / `class_*.md`
-- ファイルには「概要」「図」「更新履歴」セクションを必ず含めること
+### 3. Saving to File
+- Destination: `.gemini/docs/diagrams/`
+- Naming Convention: `sequence_*.md` / `er_*.md` / `flowchart_*.md` / `class_*.md`
+- Always include "Overview", "Diagram", and "Update History" sections in the file.
 
-### 4. 乖離チェック
-既存の図ファイルを更新する場合は、古い記述と実際のコードを照合し、不一致があれば修正してから保存すること。
+### 4. Divergence Check
+When updating an existing diagram file, check the old description against the actual code, and if there is a mismatch, fix it before saving.
 
-## ❌ やってはいけないこと
-- コードを読まずに想像で図を作成する
-- まだ実装されていない機能を図に含める
-- 実際の関数名・型名と異なる名称を使用する
+## ❌ Prohibited Actions
+- Creating diagrams based on imagination without reading the code.
+- Including features that have not yet been implemented in diagrams.
+- Using names different from the actual function names and type names.
