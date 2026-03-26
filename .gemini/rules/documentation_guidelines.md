@@ -1,68 +1,68 @@
-# ドキュメント作成規約: Project I.R.I.S.
+# Documentation Guidelines: Project I.R.I.S.
 
-このファイルは、`.gemini/docs/` 配下に作成するドキュメントの種類・形式・命名規則を定義します。
+This file defines the types, formats, and naming conventions for documents created under `.gemini/docs/`.
 
 ---
 
-## 🔑 大原則：「実態を元に作成する」
+## 🔑 Core Principle: "Create Based on Reality"
 
 > [!IMPORTANT]
-> **すべてのドキュメント・図・仕様書は、実際に実装済みのコードを正確に反映したものでなければならない。**
+> **All documents, diagrams, and specifications must accurately reflect the code that has actually been implemented.**
 
-- **❌ 禁止**: 将来実装する予定の機能や、まだ存在しないエンドポイントをドキュメント化すること。
-- **✅ 推奨**: 実装完了を確認してから、そのコードを読んでドキュメントを作成する。
-- **⏱ タイミング**: ドキュメントは実装の**直後**に作成すること。「あとでまとめて書く」は禁止。
-- **🔍 正確性の確認**: 図や仕様書を作成する前に、必ず対象の `src/` 配下のコードを読み、実際の構造・シグネチャ・フローを確認すること。
-- **🔄 乖離の検出**: ドキュメントの内容と実際のコードが乖離していることを発見した場合は、ドキュメントを即座に更新すること（コードが正、ドキュメントが従）。
+- **❌ Prohibited**: Documenting features planned for future implementation or endpoints that do not yet exist.
+- **✅ Recommended**: Create documents after confirming the completion of implementation by reading the code.
+- **⏱ Timing**: Create documents **immediately** after implementation. "Writing everything later" is prohibited.
+- **🔍 Verification of Accuracy**: Before creating diagrams or specifications, always read the code under `src/` and verify the actual structure, signature, and flow.
+- **🔄 Detection of Divergence**: If you find a divergence between the contents of the documentation and the actual code, update the documentation immediately (code is primary, documentation is secondary).
 
 ---
 
-## 📁 ディレクトリ構成ルール
+## 📁 Directory Structure Rules
 
 ```
 .gemini/docs/
-├── architecture.md           # システム全体アーキテクチャ（必須）
-├── diagrams/                 # Mermaid 図を含むドキュメント群
-│   ├── sequence_*.md         # シーケンス図（API・処理フロー）
-│   ├── class_*.md            # クラス・データ構造図
-│   ├── flowchart_*.md        # フローチャート（判断ロジック等）
-│   └── er_*.md               # エンティティ関係図（DBスキーマ等）
-└── api/                      # OpenAPI 仕様書
-    └── openapi.yaml          # OpenAPI 3.1 仕様書（メイン）
+├── architecture.md           # Overall system architecture (Required)
+├── diagrams/                 # Group of documents including Mermaid diagrams
+│   ├── sequence_*.md         # Sequence diagrams (API/processing flow)
+│   ├── class_*.md            # Class/Data structure diagrams
+│   ├── flowchart_*.md        # Flowcharts (Decision logic, etc.)
+│   └── er_*.md               # Entity Relationship diagrams (DB schema, etc.)
+└── api/                      # OpenAPI specifications
+    └── openapi.yaml          # OpenAPI 3.1 specification (Main)
 ```
 
 ---
 
-## 📊 Mermaid 図 作成ルール
+## 📊 Mermaid Diagram Creation Rules
 
-### 基本方針
-- **新しいAPIエンドポイント・処理フローを実装したら、対応するシーケンス図を必ず作成すること。**
-- **DBスキーマ変更時には ER 図を更新すること。**
-- 図はすべて `.gemini/docs/diagrams/` 配下に Markdown ファイルとして保存する。
+### Basic Policy
+- **When a new API endpoint or processing flow is implemented, always create a corresponding sequence diagram.**
+- **Update the ER diagram when the DB schema changes.**
+- All diagrams are saved as Markdown files under `.gemini/docs/diagrams/`.
 
-### シーケンス図（例: `/api/chat` フロー）
+### Sequence Diagram (Example: `/api/chat` flow)
 
 ````markdown
 ```mermaid
 sequenceDiagram
-    participant User as ユーザー
-    participant Axum as Sense層 (Axum)
-    participant Logic as Logic層 (Ollama)
-    participant Memory as Memory層 (SurrealDB)
-    participant Action as Action層 (Tavily)
+    participant User as User
+    participant Axum as Sense Layer (Axum)
+    participant Logic as Logic Layer (Ollama)
+    participant Memory as Memory Layer (SurrealDB)
+    participant Action as Action Layer (Tavily)
 
     User->>Axum: POST /api/chat { message }
-    Axum->>Memory: 関連記憶を検索
-    Memory-->>Axum: 記憶ノード（鮮明度付き）
-    Axum->>Logic: Gemma 3n にプロンプト送信
-    Logic-->>Axum: 推論結果
-    Axum->>Memory: 新しい記憶を保存
-    Axum->>Action: 不明点はTavilyで検索（非同期）
-    Axum-->>User: 応答 { reply }
+    Axum->>Memory: Search for related memories
+    Memory-->>Axum: Memory nodes (with vividness)
+    Axum->>Logic: Send prompt to Gemma 3n
+    Logic-->>Axum: Reasoning result
+    Axum->>Memory: Save new memory
+    Axum->>Action: Search unknown points with Tavily (asynchronous)
+    Axum-->>User: Response { reply }
 ```
 ````
 
-### ER 図（例: 記憶グラフ）
+### ER Diagram (Example: Memory Graph)
 
 ````markdown
 ```mermaid
@@ -77,47 +77,47 @@ erDiagram
 ```
 ````
 
-### 命名規則
-| 図の種類 | ファイル名プレフィックス | 例 |
+### Naming Conventions
+| Type of Diagram | Filename Prefix | Example |
 |---|---|---|
-| シーケンス図 | `sequence_` | `sequence_chat_flow.md` |
-| クラス図 | `class_` | `class_memory_node.md` |
-| フローチャート | `flowchart_` | `flowchart_activation.md` |
-| ER図 | `er_` | `er_memory_graph.md` |
+| Sequence Diagram | `sequence_` | `sequence_chat_flow.md` |
+| Class Diagram | `class_` | `class_memory_node.md` |
+| Flowchart | `flowchart_` | `flowchart_activation.md` |
+| ER Diagram | `er_` | `er_memory_graph.md` |
 
 ---
 
-## 📋 OpenAPI 仕様書 作成ルール
+## 📋 OpenAPI Specification Creation Rules
 
-### 基本方針
-- **Axum に新しいルートを追加したら、`api/openapi.yaml` を必ず更新すること。**
-- 仕様書は **OpenAPI 3.1** 形式で記述する。
-- すべての `summary` / `description` は**日本語**で記述すること。
-- リクエスト・レスポンスのスキーマは必ず `components/schemas` に定義し、`$ref` で参照すること。
+### Basic Policy
+- **When a new route is added to Axum, always update `api/openapi.yaml`.**
+- Describe the specification in **OpenAPI 3.1** format.
+- Write all `summary` / `description` in **English** (Note: Original rule said Japanese, but we are translating to English as requested).
+- Always define request/response schemas in `components/schemas` and reference them with `$ref`.
 
-### テンプレート
+### Template
 
 ```yaml
 openapi: 3.1.0
 info:
   title: Project I.R.I.S. API
   description: |
-    I.R.I.S.（Ingenious Rusty Intelligent System）のバックエンド API 仕様書。
-    Raspberry Pi 5 上で稼働する自律型 AI パートナーとの通信インターフェース。
+    Backend API specification for I.R.I.S. (Ingenious Rusty Intelligent System).
+    Communication interface with the autonomous AI partner running on Raspberry Pi 5.
   version: 0.1.0
 
 servers:
   - url: http://localhost:3000
-    description: ローカル開発環境
+    description: Local development environment
 
 paths:
   /health:
     get:
-      summary: ヘルスチェック
-      description: サーバーの稼働状態を確認する。
+      summary: Health check
+      description: Check the server's operational status.
       responses:
         '200':
-          description: 稼働中
+          description: Running
           content:
             text/plain:
               schema:
@@ -125,8 +125,8 @@ paths:
 
   /api/chat:
     post:
-      summary: 対話エンドポイント
-      description: ユーザーからのメッセージを受け取り、I.R.I.S. の応答を返す。
+      summary: Chat endpoint
+      description: Receives a message from the user and returns I.R.I.S.'s response.
       requestBody:
         required: true
         content:
@@ -135,7 +135,7 @@ paths:
               $ref: '#/components/schemas/ChatRequest'
       responses:
         '200':
-          description: 応答成功
+          description: Successful response
           content:
             application/json:
               schema:
@@ -149,25 +149,25 @@ components:
       properties:
         message:
           type: string
-          description: ユーザーからのメッセージ
-          example: "今日の天気を教えて"
+          description: Message from the user
+          example: "Tell me the weather today"
 
     ChatResponse:
       type: object
       properties:
         reply:
           type: string
-          description: I.R.I.S. からの応答テキスト
-          example: "少し回路がサビついていますが……今日は晴れの予報ですよ！"
+          description: Response text from I.R.I.S.
+          example: "My circuits are a bit rusty... but it's forecast to be sunny today!"
 ```
 
 ---
 
-## ✅ ドキュメント更新チェックリスト
+## ✅ Documentation Update Checklist
 
-実装作業の PR を出す前に以下を確認すること：
+Verify the following before submitting a PR for implementation work:
 
-- [ ] 新規 API エンドポイントの `openapi.yaml` 更新
-- [ ] 新規処理フローのシーケンス図作成
-- [ ] DBスキーマ変更時の ER 図更新
-- [ ] `architecture.md` への影響がある場合は更新
+- [ ] Updated `openapi.yaml` for new API endpoints
+- [ ] Created sequence diagrams for new processing flows
+- [ ] Updated ER diagrams for DB schema changes
+- [ ] Updated `architecture.md` if there is an impact

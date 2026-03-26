@@ -1,6 +1,7 @@
 use crate::logic::reasoning::OllamaClient;
-use crate::memory::graph::{connect_to_db, decay_vividness};
+use crate::memory::graph::{boost_owner_vividness, connect_to_db, decay_vividness};
 use crate::sense::server::{start_server, AppState};
+use crate::sense::vision::{start_vision_loop, MockVisionEngine, VisionEvent};
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
 
@@ -36,7 +37,7 @@ async fn main() {
         ollama: ollama_client,
     });
 
-    // 5. 記憶の自動風化バッチを別タスクで起動する（1時間ごとに5%減衰）
+    // 5. 記憶の自動風化バッチを別タスクで起動する（1時間ごとに減衰）
     tokio::spawn(async {
         let mut ticker = interval(Duration::from_secs(3600));
         loop {
@@ -47,7 +48,38 @@ async fn main() {
         }
     });
 
-    // 6. Sense 層（Axum サーバー）を起動する
+    // 6. Vision サブシステム（カメラ監視ループ + イベントハンドラ）を起動する
+    let (vision_tx, mut vision_rx) = tokio::sync::mpsc::channel::<VisionEvent>(32);
+
+    // Vision ループ（モックエンジン。本番では OpenCV エンジンに差し替え）
+    let vision_interval =
+        std::env::var("VISION_INTERVAL_SECS")
+            .unwrap_or_else(|_| "2".to_string())
+            .parse::<u64>()
+            .unwrap_or(2);
+    let engine = Box::new(MockVisionEngine::new(false));
+    tokio::spawn(async move {
+        start_vision_loop(engine, vision_tx, vision_interval).await;
+    });
+
+    // Vision イベントハンドラ（UserDetected → 主人ノードの鮮明度ブースト）
+    tokio::spawn(async move {
+        while let Some(event) = vision_rx.recv().await {
+            match event {
+                VisionEvent::UserDetected { face_count, .. } => {
+                    println!("👁️  Vision イベント受信: {face_count} 人検出");
+                    if let Err(e) = boost_owner_vividness(0.3).await {
+                        eprintln!("⚠️ 鮮明度ブーストエラー: {e}");
+                    }
+                }
+                VisionEvent::UserLeft => {
+                    println!("👁️  Vision イベント受信: 主人が離席しました");
+                }
+            }
+        }
+    });
+
+    // 7. Sense 層（Axum サーバー）を起動する
     println!("🌐 Sense 層 (Axum サーバー) を起動中...");
     tokio::select! {
         _ = start_server(state) => {},

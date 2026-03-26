@@ -2,29 +2,29 @@ openapi: 3.1.0
 info:
   title: Project I.R.I.S. API
   description: |
-    I.R.I.S.（Ingenious Rusty Intelligent System）のバックエンド API 仕様書。
-    Raspberry Pi 5 上で稼働する Rust 製の自律型 AI パートナーとの通信インターフェース。
+    Backend API Specification for I.R.I.S. (Ingenious Rusty Intelligent System).
+    Communication interface with the autonomous AI partner built with Rust running on Raspberry Pi 5.
   version: 0.1.0
   contact:
-    name: I.R.I.S. 開発チーム
+    name: I.R.I.S. Development Team
 
 servers:
   - url: http://localhost:3000
-    description: ローカル開発環境 (Docker)
+    description: Local Development Environment (Docker)
   - url: http://raspberrypi.local:3000
-    description: Raspberry Pi 5 本番環境
+    description: Raspberry Pi 5 Production Environment
 
 paths:
   /health:
     get:
-      summary: ヘルスチェック
-      description: サーバーの稼働状態を確認する。死活監視に使用。
+      summary: Health Check
+      description: Check the server's operational status. Used for liveness monitoring.
       operationId: healthCheck
       tags:
-        - システム
+        - System
       responses:
         '200':
-          description: サーバーは正常稼働中
+          description: Server is running normally
           content:
             text/plain:
               schema:
@@ -33,13 +33,13 @@ paths:
 
   /api/chat:
     post:
-      summary: 対話エンドポイント
+      summary: Chat Endpoint
       description: |
-        ユーザーからのテキストメッセージを受け取り、I.R.I.S. の応答を返す。
-        内部で Sense → Memory → Logic → Action のパイプラインを経由する。
+        Receives text messages from the user and returns I.R.I.S.'s response.
+        Internally passes through the Sense -> Memory -> Logic -> Action pipeline.
       operationId: chat
       tags:
-        - 対話
+        - Interaction
       requestBody:
         required: true
         content:
@@ -47,24 +47,24 @@ paths:
             schema:
               $ref: '#/components/schemas/ChatRequest'
             example:
-              message: "今日の天気を教えてください"
+              message: "Please tell me the weather today"
       responses:
         '200':
-          description: 応答成功
+          description: Successful response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChatResponse'
               example:
-                reply: "少し回路がサビついていますが……今日は晴れの予報ですよ！"
+                reply: "My circuits are a bit rusty... but it's forecast to be sunny today!"
         '400':
-          description: リクエスト不正
+          description: Invalid request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: サーバーエラー
+          description: Server error
           content:
             application/json:
               schema:
@@ -79,31 +79,31 @@ components:
       properties:
         message:
           type: string
-          description: ユーザーからのメッセージテキスト
+          description: Message text from the user
           minLength: 1
           maxLength: 2000
-          example: "今日の天気を教えてください"
+          example: "Please tell me the weather today"
 
     ChatResponse:
       type: object
       properties:
         reply:
           type: string
-          description: I.R.I.S. からの応答テキスト
-          example: "少し回路がサビついていますが……今日は晴れの予報ですよ！"
+          description: Response text from I.R.I.S.
+          example: "My circuits are a bit rusty... but it's forecast to be sunny today!"
 
     ErrorResponse:
       type: object
       properties:
         error:
           type: string
-          description: エラーの種別
+          description: error type
         message:
           type: string
-          description: エラーの詳細メッセージ（日本語）
+          description: Detailed error message (English)
 
   tags:
-    - name: システム
-      description: サーバーの稼働確認・管理系エンドポイント
-    - name: 対話
-      description: I.R.I.S. との対話インターフェース
+    - name: System
+      description: Endpoints for server status check and management
+    - name: Interaction
+      description: Interaction interface with I.R.I.S.

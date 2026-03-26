@@ -1,20 +1,20 @@
 ---
-name: I.R.I.S. バックエンド開発スキル
-description: Project I.R.I.S. の Rust + Gemma ベースのバックエンドを開発するための手順およびノウハウです。
+name: I.R.I.S. Backend Development Skill
+description: Procedures and know-how for developing the Rust + Gemma based backend of Project I.R.I.S.
 ---
 
-# I.R.I.S. バックエンド開発スキル
+# I.R.I.S. Backend Development Skill
 
-このスキルは、I.R.I.S. プロジェクトのバックエンドを実装・拡張する際に必要な知識と手順を提供します。
+This skill provides the knowledge and procedures required when implementing or extending the backend of the I.R.I.S. project.
 
-## 指示事項 (Instructions)
-1. **ワークスペースの初期化**: 新しいコンポーネントを作成する際は、Cargo ワークスペースを利用します。`cargo new --bin [crate_name]` を使用してください。
-2. **データベーススキーマの設定**: 最優先で SurrealDB への接続を確立します。動的な鮮明度（Vividness）パラメータを含む記憶（Memory）ノードのスキーマ定義を作成してください。
-3. **Axum API**: REST または WebSocket レイヤーを構築します。記憶（Memory）の操作が HTTP ハンドラと密結合しないように、ロジックは細かな非同期関数に分割してください。
-4. **コンピュータービジョン（CV）との連携**: `opencv-rust` が正常にビルドできることを確認してください。テスト中はカメラ入力をモック（模擬）するために、Vision Engine 用のシンプルな Trait（インターフェース）を設定してください。
+## Instructions
+1. **Workspace Initialization**: When creating a new component, use a Cargo workspace. Use `cargo new --bin [crate_name]`.
+2. **Database Schema Configuration**: Establish a connection to SurrealDB as the highest priority. Create a schema definition for memory nodes including dynamic Vividness parameters.
+3. **Axum API**: Build a REST or WebSocket layer. Divide logic into small asynchronous functions so that memory operations are not tightly coupled with HTTP handlers.
+4. **Computer Vision (CV) Integration**: Ensure that `opencv-rust` can be built successfully. Set up a simple Trait (interface) for the Vision Engine to mock camera input during testing.
 
-## 連想記憶のロジック (Associated Memory Logistics)
-新しく記憶を追加する際は、以下のステップを意識してください。
-- ユーザーの初期入力を LLM で評価し、主語や目的語を抽出する。
-- データベースを検索し、関連するノードが存在するか確認する。
-- 現在のトピックと過去の記憶ノードの間にエッジ（関係性: `RELATES_TO`）を作成する。
+## Associated Memory Logistics
+When adding a new memory, be mindful of the following steps:
+- Evaluate initial user input with the LLM and extract subject and object.
+- Search the database to check if related nodes exist.
+- Create an edge (relationship: `RELATES_TO`) between the current topic and past memory nodes.

@@ -1,0 +1,109 @@
+openapi: 3.1.0
+info:
+  title: Project I.R.I.S. API
+  description: |
+    I.R.I.S.（Ingenious Rusty Intelligent System）のバックエンド API 仕様書。
+    Raspberry Pi 5 上で稼働する Rust 製の自律型 AI パートナーとの通信インターフェース。
+  version: 0.1.0
+  contact:
+    name: I.R.I.S. 開発チーム
+
+servers:
+  - url: http://localhost:3000
+    description: ローカル開発環境 (Docker)
+  - url: http://raspberrypi.local:3000
+    description: Raspberry Pi 5 本番環境
+
+paths:
+  /health:
+    get:
+      summary: ヘルスチェック
+      description: サーバーの稼働状態を確認する。死活監視に使用。
+      operationId: healthCheck
+      tags:
+        - システム
+      responses:
+        '200':
+          description: サーバーは正常稼働中
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "I.R.I.S. is feeling perfectly fine... mostly."
+
+  /api/chat:
+    post:
+      summary: 対話エンドポイント
+      description: |
+        ユーザーからのテキストメッセージを受け取り、I.R.I.S. の応答を返す。
+        内部で Sense → Memory → Logic → Action のパイプラインを経由する。
+      operationId: chat
+      tags:
+        - 対話
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            example:
+              message: "今日の天気を教えてください"
+      responses:
+        '200':
+          description: 応答成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+              example:
+                reply: "少し回路がサビついていますが……今日は晴れの予報ですよ！"
+        '400':
+          description: リクエスト不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: ユーザーからのメッセージテキスト
+          minLength: 1
+          maxLength: 2000
+          example: "今日の天気を教えてください"
+
+    ChatResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+          description: I.R.I.S. からの応答テキスト
+          example: "少し回路がサビついていますが……今日は晴れの予報ですよ！"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: エラーの種別
+        message:
+          type: string
+          description: エラーの詳細メッセージ（日本語）
+
+  tags:
+    - name: システム
+      description: サーバーの稼働確認・管理系エンドポイント
+    - name: 対話
+      description: I.R.I.S. との対話インターフェース
